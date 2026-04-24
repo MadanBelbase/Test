@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}About · OSMSG{% endblock %}
+
+{% block content %}
+<div class="hero">
+  <div class="hero-grid">
+    <div class="hero-left">
+      <div class="hero-badge">On-the-fly · Command-line · OpenStreetMap</div>
+      <h1>Stats generator for OSM contributions</h1>
+      <p>
+        Track changesets, hashtags, countries, and users — instantly.
+        Used by <a href="https://twitter.com/stats_osm" style="color:#2b6f4b;">@stats_osm</a>.
+      </p>
+
+      <div class="hero-stats">
+        <div class="stat-item">
+          <span class="stat-number">1.2M+</span>
+          <span class="stat-label">commits</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">6</span>
+          <span class="stat-label">output formats</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-number">∞</span>
+          <span class="stat-label">custom periods</span>
+        </div>
+      </div>
+
+      <div class="cta-group">
+        <a href="https://github.com/MadanBelbase/osmsstats" class="btn-primary">📥 View on GitHub</a>
+        <a href="https://github.com/MadanBelbase/osmsstats#readme" class="btn-secondary">📘 Read manual</a>
+      </div>
+    </div>
+
+    <div class="hero-right">
+      <div style="margin-bottom: 0.8rem; font-weight:600;">sample stats output</div>
+
+      <div class="sample-json">
+        {
+        "username": "Mappers",
+        "uid": 148273,
+        "changesets": 1,
+        "nodes.create": 1071,
+        "nodes.modify": 2100,
+        "ways.create": 146,
+        "ways.modify": 69,
+        "building.create": 138,
+        "highway.create": 5,
+        "total_map_changes": 3387
+        }
+      </div>
+
+      <div style="margin-top:1.2rem; font-size:0.9rem; display:flex; gap:1rem;">
+        <span>📊 json · csv · excel · image</span>
+        <span>🔍 #hotosm</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="feature-section">
+  <h2 class="section-title">Why OSMSG ?</h2>
+  <div class="feature-grid">
+    <div class="card">
+      <h3>Country / region</h3>
+      <p>Use Geofabrik or any replication URL. Extract stats for Nepal, global, or custom boundaries.</p>
+    </div>
+
+    <div class="card">
+      <h3>Hashtag deep-dive</h3>
+      <p>Track #hotosm or any custom hashtag: contributions, users, edits per tag.</p>
+    </div>
+
+    <div class="card">
+      <h3>Auto charts + summary</h3>
+      <p>Generate charts automatically with <code>--charts</code>. Visualizations ready for socials.</p>
+    </div>
+
+    <div class="card">
+      <h3>Multiple formats</h3>
+      <p>CSV, JSON, Excel, image, text – pipe stats anywhere.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

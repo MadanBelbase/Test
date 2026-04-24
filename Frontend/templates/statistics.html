@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Statistics · OSMSG{% endblock %}
+
+{% block content %}
+
+<div class="container" style="margin-top: 4rem; margin-bottom: 6rem;">
+    <div
+        style="background: white; padding: 2.5rem; border-radius: 1.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.05); min-height: 400px; border: 1px solid #e3eee8;">
+
+        <div
+            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 1.5rem;">
+            <div>
+                <h1 style="font-size: 2.2rem; color: #1a4a36; margin-bottom: 0.5rem;">
+                    Statistics for #{{ hashtag }}
+                </h1>
+                <p style="color: #4a6b78; font-size: 1.05rem;">
+                    Period: {{ daterange }} · {{ data.summary.changesets }} Changesets · {{ data.summary.mappers }}
+                    Mappers
+                </p>
+            </div>
+            <a href="/" class="btn-secondary" style="background: #e2f0e9; padding: 0.6rem 1.4rem;">Search Again</a>
+        </div>
+
+        <div
+            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin: 2rem 0;">
+            <!-- Bar Chart -->
+            <div style="background: #f8fafc; padding: 1.5rem; border-radius: 1rem; border: 1px solid #e3eee8;">
+                <h3 style="font-size: 1.1rem; color: #1a4a36; margin-bottom: 1rem;">Contribution Breakdown</h3>
+                <div style="height: 250px;"><canvas id="barChart"></canvas></div>
+            </div>
+
+            <!-- Line Chart -->
+            <div style="background: #f8fafc; padding: 1.5rem; border-radius: 1rem; border: 1px solid #e3eee8;">
+                <h3 style="font-size: 1.1rem; color: #1a4a36; margin-bottom: 1rem;">Activity Trend</h3>
+                <div style="height: 250px;"><canvas id="lineChart"></canvas></div>
+            </div>
+
+            <!-- Pie Chart -->
+            <div style="background: #f8fafc; padding: 1.5rem; border-radius: 1rem; border: 1px solid #e3eee8;">
+                <h3 style="font-size: 1.1rem; color: #1a4a36; margin-bottom: 1rem;">Mapper Levels</h3>
+                <div style="height: 250px;"><canvas id="pieChart"></canvas></div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Pass structured chart data to JS file via hidden element -->
+<script id="charts-data" type="application/json">{{ data.charts | tojson }}</script>
+
+{% endblock %}

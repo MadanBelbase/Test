@@ -1,8 +1,33 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="en">
 
-{% block title %}Statistics · OSMSG{% endblock %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistics · OSMSG</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="static/css/style.css">
+    
+</head>
 
-{% block content %}
+<body>
+    <nav class="navbar">
+    <div class="container nav-container">
+        <div class="logo-area">
+            <div class="logo-icon">OSM</div>
+            <div class="logo-text">OSM<span>SG</span></div>
+            <div class="logo-small">v0.3.0</div>
+        </div>
+        <div class="nav-links">
+            <a href="/">Home</a>
+            <a href="/about">About</a>
+            <a href="/contact">Contact</a>
+            <a href="https://github.com/OSMSG" target="_blank">GitHub</a>
+        </div>
+    </div>
+</nav>
+
+    
 
 <div class="container" style="margin-top: 4rem; margin-bottom: 6rem;">
     <div
@@ -12,12 +37,10 @@
             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 1.5rem;">
             <div>
                 <h1 class="form-title" style="font-size: 2.2rem; color: #1a4a36; margin-bottom: 0.5rem;">
-                    Statistics for #{{ hashtag }}
+                    Statistics for #hotosm
                 </h1>
                 <p style="color: #4a6b78; font-size: 1.05rem;">
-                    Period: <span data-bind="daterange">{{ daterange }}</span> · <span data-bind="changesets">{{
-                        data.summary.changesets }}</span> Changesets · <span data-bind="mappers">{{ data.summary.mappers
-                        }}</span>
+                    Period: <span data-bind="daterange">All Time</span> · <span data-bind="changesets">12450</span> Changesets · <span data-bind="mappers">4520</span>
                     Mappers
                 </p>
             </div>
@@ -48,13 +71,29 @@
     </div>
 </div>
 
-{% endblock %}
 
-{% block extra_scripts %}
+
+    <div class="container">
+    <hr style="border: 1px solid #d2e8df;">
+    <div class="footer">
+        <div style="font-weight: 500;">© OSMSG · OpenStreetMap Stats Generator 2026</div>
+        <div class="footer-links">
+            <a href="#">Contributing</a>
+            <a href="#">Code of conduct</a>
+        </div>
+        
+    </div>
+</div>
+
+    <script src="static/js/main.js"></script>
+    
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <!-- Pass structured chart data to JS file via hidden element -->
-<script id="charts-data" type="application/json">{{ data.charts | tojson }}</script>
+<script id="charts-data" type="application/json">{"breakdown": {"data": [40, 35, 25, 15, 10], "labels": ["Roads", "Buildings", "POIs", "Landuse", "Waterways"]}, "levels": {"data": [60, 30, 10], "labels": ["Beginner", "Intermediate", "Advanced"]}, "trend": {"data": [120, 150, 180, 210, 250, 300], "labels": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"]}}</script>
 
-{% endblock %}
+
+</body>
+
+</html>

@@ -37,14 +37,10 @@ def _parse_dates(daterange_str: str) -> tuple[str, str]:
     try:
         if "to" in daterange_str:
             left, right = daterange_str.split("to", 1)
-
             d1 = datetime.strptime(left.strip(), "%d-%m-%Y")
             d2 = datetime.strptime(right.strip(), "%d-%m-%Y")
         else:
-            d1 = d2 = datetime.strptime(
-                daterange_str.strip(),
-                "%d-%m-%Y",
-            )
+            d1 = d2 = datetime.strptime(daterange_str.strip(), "%d-%m-%Y")
 
         return (
             d1.strftime("%Y-%m-%dT00:00:00Z"),
@@ -101,7 +97,7 @@ async def statistics(
 
     start, end = _parse_dates(daterange)
 
-    params = {
+    params: dict = {
         "start": start,
         "end": end,
         "limit": limit,
@@ -109,10 +105,10 @@ async def statistics(
     }
 
     if hashtags:
-        params["hashtag"] = ",".join(
+        params["hashtag"] = [
             f"#{tag.lstrip('#')}"
             for tag in hashtags
-        )
+        ]
 
     raw = _fetch(params)
 
@@ -161,7 +157,7 @@ async def api_proxy(
 
     start, end = _parse_dates(daterange)
 
-    params = {
+    params: dict = {
         "start": start,
         "end": end,
         "limit": limit,
@@ -169,10 +165,10 @@ async def api_proxy(
     }
 
     if hashtags:
-        params["hashtag"] = ",".join(
+        params["hashtag"] = [
             f"#{tag.lstrip('#')}"
             for tag in hashtags
-        )
+        ]
 
     return _fetch(params)
 

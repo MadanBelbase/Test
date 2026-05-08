@@ -1,4 +1,0 @@
-litestar[jinja]
-uvicorn
-htmx
-litestar-htmx

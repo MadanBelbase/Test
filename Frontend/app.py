@@ -1,104 +1,226 @@
-from flask import Flask, render_template, request, jsonify
+from __future__ import annotations
+
 import json
-import os
+import urllib.parse
+import urllib.request
+from datetime import datetime, timedelta
+from pathlib import Path
 
-app = Flask(__name__)
+from litestar import Litestar, get
+from litestar.contrib.jinja import JinjaTemplateEngine
+from litestar.plugins.htmx import HTMXPlugin, HTMXRequest
+from litestar.response import Template
+from litestar.static_files import StaticFilesConfig
+from litestar.template.config import TemplateConfig
 
-from datetime import datetime
+API_BASE = "https://osmsg-1.onrender.com/api/v1/user-stats"
 
-# Service layer to handle statistics logic
-class StatsService:
-    def __init__(self, data_path):
-        self.data_path = data_path
+BASE_DIR = Path(__file__).parent
 
-    def _get_days_in_range(self, daterange_str):
-        if not daterange_str or 'to' not in daterange_str:
-            return 7
-        try:
-            parts = daterange_str.split(' to ')
-            d1 = datetime.strptime(parts[0].strip(), "%d-%m-%Y")
-            d2 = datetime.strptime(parts[1].strip(), "%d-%m-%Y")
-            return max(1, (d2 - d1).days)
-        except Exception:
-            return 7
 
-    def get_stats(self, hashtag, daterange_str=None):
-        days = self._get_days_in_range(daterange_str)
-        try:
-            with open(self.data_path, 'r') as f:
-                all_data = json.load(f)
-                raw_stats = all_data.get(hashtag, all_data.get('default'))
-                
-                # Scale multiplier (base is roughly a week)
-                scale = days / 7.0
-                
-                # Standardized Response Pattern
-                return {
-                    "summary": {
-                        "hashtag": hashtag,
-                        "daterange": daterange_str or "All Time",
-                        "changesets": int(raw_stats['summary']['changesets'] * scale),
-                        "mappers": int(raw_stats['summary']['mappers'] * (scale ** 0.5)),
-                        "changes": int(raw_stats['summary']['changes'] * scale)
-                    },
-                    "charts": {
-                        "breakdown": raw_stats['breakdown'],
-                        "trend": raw_stats['trend'],
-                        "levels": raw_stats['levels']
-                    }
-                }
-        except (FileNotFoundError, json.JSONDecodeError, KeyError):
-            return self._get_error_response("Data format error or missing data")
+def _current_year() -> int:
+    return datetime.utcnow().year
 
-    def _get_error_response(self, message):
-        return {
-            "summary": {"hashtag": "N/A", "daterange": "N/A", "changesets": 0, "mappers": 0, "changes": 0},
-            "charts": {
-                "breakdown": {"labels": ["No Data"], "data": [0]},
-                "trend": {"labels": ["No Data"], "data": [0]},
-                "levels": {"labels": ["No Data"], "data": [0]}
-            },
-            "error": message
-        }
 
-stats_service = StatsService(os.path.join(app.root_path, 'data', 'stats.json'))
+def _parse_dates(daterange_str: str) -> tuple[str, str]:
+    now = datetime.utcnow()
+    yesterday = now - timedelta(days=1)
 
-@app.context_processor
-def inject_year():
-    return {'current_year': 2026}
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/statistics')
-def statistics():
-    hashtag = request.args.get('hashtag', 'hotosm')
-    daterange = request.args.get('daterange', 'All Time')
-    
-    # Use the standardized service to fetch data
-    data = stats_service.get_stats(hashtag, daterange)
-
-    return render_template(
-        'statistics.html',
-        hashtag=hashtag,
-        daterange=daterange,
-        data=data
+    fallback = (
+        yesterday.strftime("%Y-%m-%dT00:00:00Z"),
+        now.strftime("%Y-%m-%dT23:59:59Z"),
     )
 
-@app.route('/about')
-def about():
-    return render_template('about.html')
+    if not daterange_str:
+        return fallback
 
-@app.route('/contact')
-def contact():
-    return render_template('contact.html')
+    try:
+        if "to" in daterange_str:
+            left, right = daterange_str.split("to", 1)
 
-@app.route('/api/stats')
-def api_stats():
-    hashtag = request.args.get('hashtag', 'hotosm')
-    daterange = request.args.get('daterange', 'All Time')
-    return jsonify(stats_service.get_stats(hashtag, daterange))
+            d1 = datetime.strptime(left.strip(), "%d-%m-%Y")
+            d2 = datetime.strptime(right.strip(), "%d-%m-%Y")
+        else:
+            d1 = d2 = datetime.strptime(
+                daterange_str.strip(),
+                "%d-%m-%Y",
+            )
 
-if __name__ == '__main__':
-    app.run(debug=True, port=5003)
+        return (
+            d1.strftime("%Y-%m-%dT00:00:00Z"),
+            d2.strftime("%Y-%m-%dT23:59:59Z"),
+        )
+
+    except (ValueError, AttributeError):
+        return fallback
+
+
+def _fetch(params: dict) -> dict:
+    url = f"{API_BASE}?{urllib.parse.urlencode(params, doseq=True)}"
+
+    req = urllib.request.Request(
+        url,
+        headers={"Accept": "application/json"},
+    )
+
+    with urllib.request.urlopen(req, timeout=90) as response:
+        raw = response.read().decode()
+
+        if not raw.strip():
+            return {}
+
+        return json.loads(raw)
+
+
+def _url_for(endpoint: str, **values: str) -> str:
+    if endpoint == "static":
+        filename = values.get("filename", "")
+        return f"/static/{filename}"
+
+    return f"/{endpoint}"
+
+
+@get("/")
+async def index(request: HTMXRequest) -> Template:
+    return Template(
+        "index.html",
+        context={
+            "current_year": _current_year(),
+        },
+    )
+
+
+@get("/statistics")
+async def statistics(
+    request: HTMXRequest,
+    hashtags: list[str] | None = None,
+    daterange: str = "",
+    limit: int = 25,
+    offset: int = 0,
+) -> Template:
+
+    start, end = _parse_dates(daterange)
+
+    params = {
+        "start": start,
+        "end": end,
+        "limit": limit,
+        "offset": offset,
+    }
+
+    if hashtags:
+        params["hashtag"] = ",".join(
+            f"#{tag.lstrip('#')}"
+            for tag in hashtags
+        )
+
+    raw = _fetch(params)
+
+    print(params)
+    print(raw)
+
+    users = raw.get("users", [])
+
+    meta = {
+        "start": raw.get("start", start),
+        "end": raw.get("end", end),
+        "count": raw.get("count", len(users)),
+        "hashtag": raw.get("hashtag", hashtags or []),
+        "limit": raw.get("limit", limit),
+        "offset": raw.get("offset", offset),
+    }
+
+    template = (
+        "partials/leaderboard.html"
+        if request.htmx
+        else "statistics.html"
+    )
+
+    return Template(
+        template,
+        context={
+            "users": users,
+            "meta": meta,
+            "hashtags": hashtags or [],
+            "daterange": daterange,
+            "limit": limit,
+            "offset": offset,
+            "current_year": _current_year(),
+        },
+    )
+
+
+@get("/api/proxy")
+async def api_proxy(
+    request: HTMXRequest,
+    hashtags: list[str] | None = None,
+    daterange: str = "",
+    limit: int = 25,
+    offset: int = 0,
+) -> dict:
+
+    start, end = _parse_dates(daterange)
+
+    params = {
+        "start": start,
+        "end": end,
+        "limit": limit,
+        "offset": offset,
+    }
+
+    if hashtags:
+        params["hashtag"] = ",".join(
+            f"#{tag.lstrip('#')}"
+            for tag in hashtags
+        )
+
+    return _fetch(params)
+
+
+@get("/about")
+async def about(request: HTMXRequest) -> Template:
+    return Template(
+        "about.html",
+        context={
+            "current_year": _current_year(),
+        },
+    )
+
+
+@get("/contact")
+async def contact(request: HTMXRequest) -> Template:
+    return Template(
+        "contact.html",
+        context={
+            "current_year": _current_year(),
+        },
+    )
+
+
+def _configure_jinja(engine: JinjaTemplateEngine) -> None:
+    engine.engine.globals["url_for"] = _url_for
+
+
+app = Litestar(
+    route_handlers=[
+        index,
+        statistics,
+        api_proxy,
+        about,
+        contact,
+    ],
+    plugins=[HTMXPlugin()],
+    template_config=TemplateConfig(
+        directory=BASE_DIR / "templates",
+        engine=JinjaTemplateEngine,
+        engine_callback=_configure_jinja,
+    ),
+    static_files_config=[
+        StaticFilesConfig(
+            directories=[BASE_DIR / "static"],
+            path="/static",
+            name="static",
+        )
+    ],
+    debug=True,
+)

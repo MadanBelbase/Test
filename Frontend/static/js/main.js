@@ -1,198 +1,163 @@
-// OSMSG Main Frontend Logic
-let fpInstance; // Global reference for flatpickr
+const _fpInstances = {};
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Initialize Date Picker (Flatpickr)
-    const dateInput = document.getElementById('daterange');
-    if (dateInput && typeof flatpickr !== 'undefined') {
-        fpInstance = flatpickr("#daterange", {
-            mode: "range",
-            dateFormat: "d-m-Y"
+    document.querySelectorAll('.date-input[id^="daterange"]').forEach(el => {
+        _fpInstances[el.id] = flatpickr(el, {
+            mode: 'range',
+            dateFormat: 'd-m-Y',
         });
-    }
-
-    // 2. Initialize Charts (Chart.js)
-    const chartsDataElement = document.getElementById('charts-data');
-    if (chartsDataElement && typeof Chart !== 'undefined') {
-        try {
-            const charts = JSON.parse(chartsDataElement.textContent);
-            renderDashboardCharts(charts);
-        } catch (e) {
-            console.error('Error parsing charts data:', e);
-        }
-    }
+    });
 });
 
-// Global helper for interval selection
+function setIntervalRangeForId(inputId, type) {
+    const fp = _fpInstances[inputId];
+    if (!fp) return;
+    const end = new Date();
+    const start = new Date();
+    if (type === 'daily') start.setDate(end.getDate() - 1);
+    else if (type === 'weekly') start.setDate(end.getDate() - 7);
+    else if (type === 'monthly') start.setMonth(end.getMonth() - 1);
+    fp.setDate([start, end], true);
+}
+
+
 function setIntervalRange(type) {
-    if (!fpInstance) return;
-
-    const today = new Date();
-    let start = new Date();
-
-    if (type === 'daily') {
-        start.setDate(today.getDate() - 1);
-    } else if (type === 'weekly') {
-        start.setDate(today.getDate() - 7);
-    } else if (type === 'monthly') {
-        start.setMonth(today.getMonth() - 1);
-    } else if (type === 'yearly') {
-        start.setFullYear(today.getFullYear() - 1);
-    }
-
-    fpInstance.setDate([start, today]);
+    const id = document.getElementById('daterange') ? 'daterange' : 'daterange-stats';
+    setIntervalRangeForId(id, type);
 }
 
-// Chart rendering engine
-function renderDashboardCharts(charts) {
-    const primaryColor = '#2b6f4b';
-    const accentColors = ['#2b6f4b', '#4a9563', '#a0c2b5', '#d2e8df'];
+function downloadCSV() {
+    const table = document.getElementById('leaderboardTable');
+    if (!table) return;
 
-    // Bar Chart
-    const ctxBar = document.getElementById('barChart');
-    if (ctxBar && charts.breakdown) {
-        new Chart(ctxBar, {
-            type: 'bar',
-            data: {
-                labels: charts.breakdown.labels,
-                datasets: [{
-                    label: 'Edits',
-                    data: charts.breakdown.data,
-                    backgroundColor: primaryColor,
-                    borderRadius: 6
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } }
-            }
-        });
-    }
-
-    // Line Chart
-    const ctxLine = document.getElementById('lineChart');
-    if (ctxLine && charts.trend) {
-        new Chart(ctxLine, {
-            type: 'line',
-            data: {
-                labels: charts.trend.labels,
-                datasets: [{
-                    label: 'Trend',
-                    data: charts.trend.data,
-                    borderColor: primaryColor,
-                    backgroundColor: 'rgba(43, 111, 75, 0.1)',
-                    fill: true,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } }
-            }
-        });
-    }
-
-    // Pie Chart
-    const ctxPie = document.getElementById('pieChart');
-    if (ctxPie && charts.levels) {
-        new Chart(ctxPie, {
-            type: 'pie',
-            data: {
-                labels: charts.levels.labels,
-                datasets: [{
-                    data: charts.levels.data,
-                    backgroundColor: accentColors
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom' } }
-            }
-        });
-    }
-}
-
-// --- Static Hosting Utility ---
-// This block ensures the application works on GitHub Pages by simulating 
-// the Flask backend logic in the browser when running as a static site.
-
-if (window.location.protocol !== 'file:' || true) { // Run in all environments for compatibility
-    document.addEventListener('DOMContentLoaded', async () => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const hashtag = urlParams.get('hashtag');
-
-        // If we are on statistics page and have a hashtag, fetch data manually
-        if (hashtag && window.location.pathname.includes('statistics')) {
-            console.log('Static Mode: Fetching data for', hashtag);
-            try {
-                // Determine base path to data
-                const isGitHubPages = window.location.hostname.includes('github.io');
-                const pathPrefix = isGitHubPages ? `/${window.location.pathname.split('/')[1]}` : '';
-                const response = await fetch(`${pathPrefix}/data/stats.json`.replace('//', '/'));
-                const allData = await response.json();
-
-                const rawStats = allData[hashtag] || allData['default'];
-
-                // Simple scaling logic (mimics app.py)
-                const daterange = urlParams.get('daterange') || 'All Time';
-                let scale = 1.0;
-                if (daterange.includes(' to ')) {
-                    const parts = daterange.split(' to ');
-                    const d1 = new Date(parts[0].split('-').reverse().join('-'));
-                    const d2 = new Date(parts[1].split('-').reverse().join('-'));
-                    const days = Math.max(1, (d2 - d1) / (1000 * 60 * 60 * 24));
-                    scale = days / 7.0;
-                }
-
-                const stats = {
-                    summary: {
-                        hashtag: hashtag,
-                        daterange: daterange,
-                        changesets: Math.floor(rawStats.summary.changesets * scale),
-                        mappers: Math.floor(rawStats.summary.mappers * Math.pow(scale, 0.5)),
-                        changes: Math.floor(rawStats.summary.changes * scale)
-                    },
-                    charts: rawStats
-                };
-
-                // Update UI elements
-                document.querySelectorAll('[data-bind]').forEach(el => {
-                    const key = el.getAttribute('data-bind');
-                    if (stats.summary[key] !== undefined) {
-                        el.textContent = stats.summary[key].toLocaleString();
-                    }
-                });
-
-                // Update charts if they exist
-                if (typeof renderDashboardCharts === 'function') {
-                    renderDashboardCharts(stats.charts);
-                }
-
-                // Update page title/header
-                const titleEl = document.querySelector('h2.form-title');
-                if (titleEl) titleEl.innerHTML = `Statistics for <span>#${hashtag}</span>`;
-
-            } catch (e) {
-                console.error('Static mode data fetch failed:', e);
-            }
+    const rows = [];
+    for (const row of table.rows) {
+        const cols = [];
+        for (const cell of row.querySelectorAll('td, th')) {
+            let text = cell.innerText
+                .replace(/workspace_premium|add_task/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+            cols.push('"' + text.replace(/"/g, '""') + '"');
         }
-    });
-
-    // Update navigation links for static hosting (e.g. /about -> /about.html)
-    if (window.location.hostname.includes('github.io') || window.location.port !== '') {
-        document.querySelectorAll('.nav-links a').forEach(link => {
-            const href = link.getAttribute('href');
-            if (href && href.startsWith('/') && !href.endsWith('.html') && href !== '/') {
-                // If it's a known route, append .html if needed
-                if (['/about', '/contact', '/statistics'].some(r => href === r)) {
-                    // But in GH Pages with Frozen-Flask, they usually become /about/index.html or /about/
-                    // For simplicity, let's keep it as is if it works, or append /
-                }
-            }
-        });
+        rows.push(cols.join(','));
     }
+
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'osmsg_leaderboard.csv';
+    link.click();
+    URL.revokeObjectURL(url);
 }
+
+const TAGS = [
+  "OzonGeo",
+  "tt_event",
+  "AfricaMapCup2026",
+  "maproulette",
+  "msf",
+  "missingmaps",
+  "Aweil",
+  "MapComplete",
+  "homtom",
+  "osm-tr",
+  "hotosm-project-49902",
+  "GeoTETZ",
+  "OSMTanzania",
+  "hotosm-project-49935",
+  "youthmappersoau",
+  "hotosm-project-49638",
+  "osmzwawakening",
+  "syria-remapping-2025",
+  "Kaart",
+  "osmzimbabwe"
+];
+
+const input = document.getElementById("hashtag-input");
+const suggestionsBox = document.getElementById("tag-suggestions");
+const chipBox = document.getElementById("tag-chip-box");
+const hiddenBox = document.getElementById("hashtag-hiddens");
+
+let tags = [];
+
+function renderTags() {
+  chipBox.innerHTML = "";
+  hiddenBox.innerHTML = "";
+
+  tags.forEach((tag, i) => {
+    const chip = document.createElement("span");
+    chip.className = "tag-chip";
+    chip.innerHTML = `
+      ${tag}
+      <span class="tag-remove" data-index="${i}">×</span>
+    `;
+
+    chipBox.appendChild(chip);
+
+    const hidden = document.createElement("input");
+    hidden.type = "hidden";
+    hidden.name = "hashtags";
+    hidden.value = tag;
+
+    hiddenBox.appendChild(hidden);
+  });
+}
+
+function showSuggestions(value) {
+  suggestionsBox.innerHTML = "";
+
+  if (!value) return;
+
+  const filtered = TAGS.filter(
+    t =>
+      t.toLowerCase().includes(value.toLowerCase()) &&
+      !tags.includes(t)
+  );
+
+  filtered.forEach(tag => {
+    const item = document.createElement("div");
+    item.className = "suggestion-item";
+    item.textContent = tag;
+
+    item.onclick = () => {
+      tags.push(tag);
+      renderTags();
+
+      input.value = "";
+      suggestionsBox.innerHTML = "";
+    };
+
+    suggestionsBox.appendChild(item);
+  });
+}
+
+input.addEventListener("input", (e) => {
+  showSuggestions(e.target.value);
+});
+
+
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+
+    const value = input.value.trim();
+
+    if (value && TAGS.includes(value) && !tags.includes(value)) {
+      tags.push(value);
+      renderTags();
+    }
+
+    input.value = "";
+    suggestionsBox.innerHTML = "";
+  }
+});
+
+chipBox.addEventListener("click", (e) => {
+  if (e.target.classList.contains("tag-remove")) {
+    const index = e.target.dataset.index;
+    tags.splice(index, 1);
+    renderTags();
+  }
+});

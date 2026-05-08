@@ -1,1 +1,0 @@
-{"charts":{"breakdown":{"data":[40,35,25,15,10],"labels":["Roads","Buildings","POIs","Landuse","Waterways"]},"levels":{"data":[60,30,10],"labels":["Beginner","Intermediate","Advanced"]},"trend":{"data":[120,150,180,210,250,300],"labels":["Jan","Feb","Mar","Apr","May","Jun"]}},"summary":{"changes":428900,"changesets":12450,"daterange":"All Time","hashtag":"hotosm","mappers":4520}}

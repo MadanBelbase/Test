@@ -1,60 +1,216 @@
-{% extends "base.html" %}
+{% extends "base.html" %} {% block title %}Statistics · OSMSG{% endblock %} {%
+block content %}
 
-{% block title %}Statistics · OSMSG{% endblock %}
+<div class="container stats-page-container">
+  {% if error %}
 
-{% block content %}
+  <div class="error-banner">
+    <span class="material-icons">error_outline</span>
 
-<div class="container" style="margin-top: 4rem; margin-bottom: 6rem;">
-    <div
-        style="background: white; padding: 2.5rem; border-radius: 1.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.05); min-height: 400px; border: 1px solid #e3eee8;">
-
-        <div
-            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 1.5rem;">
-            <div>
-                <h1 class="form-title" style="font-size: 2.2rem; color: #1a4a36; margin-bottom: 0.5rem;">
-                    Statistics for #{{ hashtag }}
-                </h1>
-                <p style="color: #4a6b78; font-size: 1.05rem;">
-                    Period: <span data-bind="daterange">{{ daterange }}</span> · <span data-bind="changesets">{{
-                        data.summary.changesets }}</span> Changesets · <span data-bind="mappers">{{ data.summary.mappers
-                        }}</span>
-                    Mappers
-                </p>
-            </div>
-            <a href="/" class="btn-secondary" style="background: #e2f0e9; padding: 0.6rem 1.4rem;">Search Again</a>
-        </div>
-
-        <div
-            style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin: 2rem 0;">
-            <!-- Bar Chart -->
-            <div style="background: #f8fafc; padding: 1.5rem; border-radius: 1rem; border: 1px solid #e3eee8;">
-                <h3 style="font-size: 1.1rem; color: #1a4a36; margin-bottom: 1rem;">Contribution Breakdown</h3>
-                <div style="height: 250px;"><canvas id="barChart"></canvas></div>
-            </div>
-
-            <!-- Line Chart -->
-            <div style="background: #f8fafc; padding: 1.5rem; border-radius: 1rem; border: 1px solid #e3eee8;">
-                <h3 style="font-size: 1.1rem; color: #1a4a36; margin-bottom: 1rem;">Activity Trend</h3>
-                <div style="height: 250px;"><canvas id="lineChart"></canvas></div>
-            </div>
-
-            <!-- Pie Chart -->
-            <div style="background: #f8fafc; padding: 1.5rem; border-radius: 1rem; border: 1px solid #e3eee8;">
-                <h3 style="font-size: 1.1rem; color: #1a4a36; margin-bottom: 1rem;">Mapper Levels</h3>
-                <div style="height: 250px;"><canvas id="pieChart"></canvas></div>
-            </div>
-        </div>
-
+    <div>
+      <strong>API Error</strong>
+      <p>{{ error }}</p>
     </div>
+  </div>
+
+  {% else %}
+
+
+  <div class="stats-meta-bar">
+    <div class="meta-item">
+      <span class="material-icons meta-icon">event</span>
+      <span>{{ meta.start[:10] }} → {{ meta.end[:10] }}</span>
+    </div>
+
+    {% if meta.hashtag %}
+    <div class="meta-item">
+      <span class="material-icons meta-icon">tag</span>
+      <span>{{ meta.hashtag[0].replace('#', '') }}</span>
+    </div>
+    {% endif %}
+
+    <div class="meta-item">
+      <span class="material-icons meta-icon">group</span>
+      <span>{{ meta.count }} contributors</span>
+    </div>
+
+    <div class="meta-item">
+      <span class="material-icons meta-icon">layers</span>
+      <span>Showing {{ offset + 1 }}–{{ offset + users|length }}</span>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="stats-table-wrapper">
+    <div class="stats-table-header">
+      <h3 class="stats-title">
+        <span class="material-icons stats-title-icon"> emoji_events </span>
+        Leaderboard
+      </h3>
+
+      <button onclick="downloadCSV()" class="stats-btn-download">
+        <span class="material-icons" style="font-size: 1.1rem">
+          file_download
+        </span>
+
+        Download CSV
+      </button>
+    </div>
+
+    <div class="table-scroll">
+      <table id="leaderboardTable" class="stats-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Name</th>
+            <th>Changesets</th>
+            <th>Nodes (C/M/D)</th>
+            <th>Ways (C/M/D)</th>
+            <th>Relations (C/M/D)</th>
+            <th>POI (C/M)</th>
+            <th>Map Changes</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for user in users %}
+
+          <tr>
+            <td>
+              {% if user.rank == 1 %}
+              <span class="material-icons stats-rank-gold">
+                workspace_premium
+              </span>
+
+              {% elif user.rank == 2 %}
+              <span class="material-icons stats-rank-silver">
+                workspace_premium
+              </span>
+
+              {% elif user.rank == 3 %}
+              <span class="material-icons stats-rank-bronze">
+                workspace_premium
+              </span>
+
+              {% else %}
+              <span class="stats-rank-other"> {{ user.rank }} </span>
+
+              {% endif %}
+            </td>
+
+            <td class="name-col">
+              <a
+                href="https://www.openstreetmap.org/user/{{ user.name | urlencode }}"
+                target="_blank"
+                class="user-link"
+              >
+                {{ user.name }}
+              </a>
+            </td>
+
+            <td>{{ user.changesets }}</td>
+
+            <td class="triple-col">
+              <span class="triple c">{{ user.nodes_create }}</span>
+              <span class="sep">/</span>
+              <span class="triple m">{{ user.nodes_modify }}</span>
+              <span class="sep">/</span>
+              <span class="triple d">{{ user.nodes_delete }}</span>
+            </td>
+
+            <td class="triple-col">
+              <span class="triple c">{{ user.ways_create }}</span>
+              <span class="sep">/</span>
+              <span class="triple m">{{ user.ways_modify }}</span>
+              <span class="sep">/</span>
+              <span class="triple d">{{ user.ways_delete }}</span>
+            </td>
+
+            <td class="triple-col">
+              <span class="triple c">{{ user.rels_create }}</span>
+              <span class="sep">/</span>
+              <span class="triple m">{{ user.rels_modify }}</span>
+              <span class="sep">/</span>
+              <span class="triple d">{{ user.rels_delete }}</span>
+            </td>
+
+            <td class="triple-col">
+              <span class="triple c">{{ user.poi_create }}</span>
+              <span class="sep">/</span>
+              <span class="triple m">{{ user.poi_modify }}</span>
+            </td>
+
+            <td>
+              <span class="map-changes-badge">
+                <span class="material-icons" style="font-size: 0.95rem">
+                  add_task
+                </span>
+
+                <strong> {{ "{:,}".format(user.map_changes) }} </strong>
+              </span>
+            </td>
+          </tr>
+
+          {% endfor %} {% if not users %}
+          <tr>
+            <td colspan="8" class="empty-row">
+              No contributions found for this query.
+            </td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% if users|length == limit or offset > 0 %}
+
+  <div class="pagination">
+    {% if offset > 0 %}
+
+    <a
+      href="/statistics?hashtag={{ hashtag }}&daterange={{ daterange }}&limit={{ limit }}&offset={{ [offset-limit, 0]|max }}"
+      class="page-btn"
+    >
+      <span class="material-icons">chevron_left</span>
+      Prev
+    </a>
+
+    {% endif %}
+
+    <span class="page-info"> Page {{ (offset // limit) + 1 }} </span>
+
+    {% if users|length == limit %}
+
+    <a
+      href="/statistics?hashtag={{ hashtag }}&daterange={{ daterange }}&limit={{ limit }}&offset={{ offset+limit }}"
+      class="page-btn"
+    >
+      Next
+      <span class="material-icons">chevron_right</span>
+    </a>
+
+    {% endif %}
+  </div>
+
+  {% endif %} {% endif %}
 </div>
 
-{% endblock %}
+{% endblock %} {% block extra_scripts %}
 
-{% block extra_scripts %}
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
+/>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-<!-- Pass structured chart data to JS file via hidden element -->
-<script id="charts-data" type="application/json">{{ data.charts | tojson }}</script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    flatpickr("#daterange-stats", {
+      mode: "range",
+      dateFormat: "d-m-Y",
+    });
+  });
+</script>
 
 {% endblock %}

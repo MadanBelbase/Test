@@ -1,2 +1,4 @@
-litestar[jinja,htmx]
-uvicorn[standard]
+litestar[jinja]
+uvicorn
+htmx
+litestar-htmx

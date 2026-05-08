@@ -18,7 +18,7 @@
   {% if meta.hashtag %}
   <div class="meta-item">
     <span class="material-icons meta-icon">tag</span>
-    <span>{{ meta.hashtag[0].replace('#', '') }}</span>
+    <span>{{ meta.hashtag | join(', ') | replace('#', '') }}</span>
   </div>
   {% endif %}
   <div class="meta-item">
@@ -35,16 +35,14 @@
     </h3>
     <div class="stats-actions">
       <a
-      href="/statistics?{% for h in hashtags %}hashtags={{ h }}&{% endfor %}daterange={{ daterange }}&limit={{ limit }}&offset={{ offset }}"
+      href="/statistics?{% for h in hashtags %}hashtags={{ h | urlencode }}{% if not loop.last %}&{% endif %}{% endfor %}{% if daterange %}&daterange={{ daterange | urlencode }}{% endif %}&limit={{ limit }}&offset={{ offset }}"
         class="stats-btn-link"
       >
         <span class="material-icons" style="font-size: 1rem">open_in_new</span>
         Full Page
       </a>
       <button onclick="downloadCSV()" class="stats-btn-download">
-        <span class="material-icons" style="font-size: 1.1rem"
-          >file_download</span
-        >
+        <span class="material-icons" style="font-size: 1.1rem">file_download</span>
         CSV
       </button>
     </div>
@@ -69,17 +67,11 @@
         <tr>
           <td>
             {% if user.rank == 1 %}
-            <span class="material-icons stats-rank-gold"
-              >workspace_premium</span
-            >
+            <span class="material-icons stats-rank-gold">workspace_premium</span>
             {% elif user.rank == 2 %}
-            <span class="material-icons stats-rank-silver"
-              >workspace_premium</span
-            >
+            <span class="material-icons stats-rank-silver">workspace_premium</span>
             {% elif user.rank == 3 %}
-            <span class="material-icons stats-rank-bronze"
-              >workspace_premium</span
-            >
+            <span class="material-icons stats-rank-bronze">workspace_premium</span>
             {% else %}
             <span class="stats-rank-other">{{ user.rank }}</span>
             {% endif %}
@@ -89,8 +81,7 @@
               href="https://www.openstreetmap.org/user/{{ user.name | urlencode }}"
               target="_blank"
               class="user-link"
-              >{{ user.name }}</a
-            >
+            >{{ user.name }}</a>
           </td>
           <td>{{ user.changesets }}</td>
           <td class="triple-col">
@@ -121,14 +112,13 @@
           </td>
           <td>
             <span class="map-changes-badge">
-              <span class="material-icons" style="font-size: 0.95rem"
-                >add_task</span
-              >
+              <span class="material-icons" style="font-size: 0.95rem">add_task</span>
               <strong>{{ "{:,}".format(user.map_changes) }}</strong>
             </span>
           </td>
         </tr>
-        {% endfor %} {% if not users %}
+        {% endfor %}
+        {% if not users %}
         <tr>
           <td colspan="8" class="empty-row">
             No contributions found for this query.
